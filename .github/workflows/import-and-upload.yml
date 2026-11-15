@@ -1,0 +1,53 @@
+name: Import a video (PC off) and upload it
+
+# Claude pushes a finished video in pieces to a temporary "transfer/..." branch, then starts this.
+# It rebuilds the file, puts it in the Drive queue, uploads it to YouTube with all follow-up
+# steps, removes the Drive copy, and deletes the transfer branch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Transfer branch, e.g. transfer/orez-ep1"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: youtube-uploader
+  cancel-in-progress: false
+
+jobs:
+  import-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          path: transfer
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Put the video into the Drive queue
+        id: imp
+        env:
+          YT_CLOUD_KEY: ${{ secrets.YT_CLOUD_KEY }}
+          IMPORT_DIR: transfer/transfer
+        run: node cloud/import.mjs
+
+      - name: Upload from Drive to YouTube (then subtitles, translations, publish, comment)
+        env:
+          YT_CLOUD_KEY: ${{ secrets.YT_CLOUD_KEY }}
+          JOB_FILE_ID: ${{ steps.imp.outputs.job_file_id }}
+          FORCE: "true"
+        run: node cloud/run.mjs
+
+      - name: Delete the transfer branch
+        if: always()
+        run: git push origin --delete "${{ inputs.branch }}" || true

@@ -551,6 +551,8 @@ export function createGoogle(getAccessToken, log = () => {}) {
     }
     const result = {
       title: label,
+      job_file_name: meta.name,
+      ...(job.after_upload ? { after_upload: job.after_upload } : {}),
       youtube_video_id: videoId,
       url: `https://youtu.be/${videoId}`,
       privacy: fresh && fresh.status && fresh.status.privacyStatus,
@@ -560,7 +562,10 @@ export function createGoogle(getAccessToken, log = () => {}) {
       deleted_from_drive: deleted,
       finished_at: new Date().toISOString(),
     };
-    if (folderId) await appendLog(folderId, result);
+    if (folderId) {
+      const { after_upload, ...logged } = result;
+      await appendLog(folderId, logged);
+    }
     return result;
   }
 

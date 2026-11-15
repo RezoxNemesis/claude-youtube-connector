@@ -7,6 +7,7 @@
 
 import fs from "node:fs";
 import { createGoogle, refreshTokenAuth } from "../src/core.mjs";
+import { runTask } from "./tasklib.mjs";
 
 const log = (...a) => console.log(...a);
 
@@ -70,6 +71,20 @@ async function main() {
       } else {
         log(`uploaded → ${r.url} (${r.privacy}); removed ${r.deleted_from_drive.length} file(s) from Drive`);
         rows.push(`| ${id.slice(0, 8)}… | uploaded ${r.url} (${r.privacy}) |`);
+        const stem = String(r.job_file_name || "").replace(/\.youtube\.json$/i, "");
+        const repoTask = stem && fs.existsSync(`tasks/after-upload/${stem}.json`) ? JSON.parse(fs.readFileSync(`tasks/after-upload/${stem}.json`, "utf8")) : null;
+        const follow = r.after_upload || repoTask;
+        if (follow) {
+          log("running follow-up steps (subtitles, translations, publishing, comment)");
+          try {
+            const lines = await runTask(g, r.youtube_video_id, follow, (m) => log("  " + m));
+            for (const l of lines) rows.push(`| ↳ | ${l.replace(/\|/g, "/")} |`);
+          } catch (e) {
+            failures++;
+            log(`follow-up failed: ${e.message}`);
+            rows.push(`| ↳ | follow-up failed: ${String(e.message).replace(/\|/g, "/").slice(0, 200)} |`);
+          }
+        }
       }
     } catch (e) {
       failures++;
