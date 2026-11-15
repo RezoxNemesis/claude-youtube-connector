@@ -1,0 +1,30 @@
+name: YouTube task (subtitles, translations, publishing)
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_file:
+        description: "Path of the task JSON in this repo, e.g. tasks/orez-ep1/task.json"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: youtube-task
+  cancel-in-progress: false
+
+jobs:
+  task:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run task
+        env:
+          YT_CLOUD_KEY: ${{ secrets.YT_CLOUD_KEY }}
+          TASK_FILE: ${{ inputs.task_file }}
+        run: node cloud/task.mjs

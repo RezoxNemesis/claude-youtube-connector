@@ -568,6 +568,60 @@ export function createGoogle(getAccessToken, log = () => {}) {
     return call("GET", `${ANALYTICS}/reports${qs({ ids: "channel==MINE", ...params })}`);
   }
 
+  // ------------------------------------------------ captions & translations
+
+  async function listCaptions(videoId) {
+    const j = await yt("GET", "captions", { part: "snippet", videoId });
+    return (j.items || []).map((c) => ({ id: c.id, language: c.snippet.language, name: c.snippet.name, trackKind: c.snippet.trackKind, isDraft: c.snippet.isDraft, status: c.snippet.status }));
+  }
+
+  // Add (or replace) a subtitle track. text: SRT or WebVTT content.
+  async function uploadCaption(videoId, language, name, text) {
+    const existing = (await listCaptions(videoId)).find((c) => c.language === language && c.name === name && c.trackKind !== "asr");
+    const boundary = "cap" + Math.random().toString(36).slice(2);
+    const meta = existing ? { id: existing.id, snippet: { isDraft: false } } : { snippet: { videoId, language, name, isDraft: false } };
+    const body =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n` +
+      `--${boundary}\r\nContent-Type: application/octet-stream\r\n\r\n${text}\r\n--${boundary}--`;
+    const r = await call(existing ? "PUT" : "POST", `${YT_UPLOAD}/captions${qs({ part: "snippet", uploadType: "multipart" })}`, {
+      body: Buffer.from(body, "utf8"),
+      headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+    });
+    return { id: r.id, language, name, replaced: !!existing };
+  }
+
+  // Set translated titles/descriptions. localizations: { hi: {title, description}, es: {...} }.
+  async function setLocalizations(videoId, defaultLanguage, localizations) {
+    const j = await yt("GET", "videos", { part: "snippet,localizations", id: videoId });
+    const v = (j.items || [])[0];
+    if (!v) throw new Error(`Video ${videoId} not found.`);
+    const s = v.snippet;
+    const snippet = {
+      title: s.title,
+      description: s.description,
+      categoryId: s.categoryId,
+      tags: s.tags || [],
+      defaultLanguage: defaultLanguage || s.defaultLanguage || "en",
+      ...(s.defaultAudioLanguage ? { defaultAudioLanguage: s.defaultAudioLanguage } : {}),
+    };
+    const merged = { ...(v.localizations || {}), ...localizations };
+    delete merged[snippet.defaultLanguage];
+    const r = await yt("PUT", "videos", { part: "snippet,localizations" }, { id: videoId, snippet, localizations: merged });
+    return { id: r.id, default_language: snippet.defaultLanguage, languages: Object.keys(r.localizations || {}) };
+  }
+
+  async function processing(videoId) {
+    const j = await yt("GET", "videos", { part: "status,processingDetails,contentDetails", id: videoId });
+    const v = (j.items || [])[0];
+    if (!v) throw new Error(`Video ${videoId} not found.`);
+    return {
+      privacyStatus: v.status.privacyStatus,
+      uploadStatus: v.status.uploadStatus,
+      processingStatus: v.processingDetails && v.processingDetails.processingStatus,
+      duration: v.contentDetails && v.contentDetails.duration,
+    };
+  }
+
   return {
     call,
     yt,
@@ -592,6 +646,10 @@ export function createGoogle(getAccessToken, log = () => {}) {
     listQueue,
     processJob,
     analytics,
+    listCaptions,
+    uploadCaption,
+    setLocalizations,
+    processing,
   };
 }
 
