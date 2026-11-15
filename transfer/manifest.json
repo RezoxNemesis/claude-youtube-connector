@@ -1,0 +1,57 @@
+{
+ "video_name": "Papa_Short1.mp4",
+ "sha256": "28690e693ca9598545fa76c7078d38203d54d38687fd07845b057d07fff46288",
+ "parts": [
+  "Papa_Short1.mp4"
+ ],
+ "job": {
+  "title": "एक बच्ची ने उसे गुलाब दिया… वो कौन थी? 🌹 #shorts",
+  "description": "प्लेटफ़ॉर्म 4, रात का वक़्त। एक छोटी बच्ची, हाथ में एक गुलाब — और वही शब्द जो वो पहले भी सुन चुका था।\n\n▶ पूरी फ़िल्म: https://youtu.be/BtnA4mseX0M\n\n#shorts #animation #emotional #papabeti #hindistory",
+  "after_upload": {
+   "localizations": {
+    "en": {
+     "title": "A little girl gave him a rose… who was she? 🌹 #shorts",
+     "description": "Platform 4, at night. A little girl with a rose in her hand — and words he had heard before.\n\n▶ Full film: https://youtu.be/BtnA4mseX0M\n\n#shorts #animation #emotional #fatherdaughter"
+    },
+    "hi": {
+     "title": "एक बच्ची ने उसे गुलाब दिया… वो कौन थी? 🌹 #shorts",
+     "description": "प्लेटफ़ॉर्म 4, रात का वक़्त। एक छोटी बच्ची, हाथ में एक गुलाब — और वही शब्द जो वो पहले भी सुन चुका था।\n\n▶ पूरी फ़िल्म: https://youtu.be/BtnA4mseX0M\n\n#shorts #animation #emotional #papabeti #hindistory"
+    }
+   },
+   "publish_after_processed_seconds": 30,
+   "comment": "पूरी कहानी यहाँ देखिए 👉 https://youtu.be/BtnA4mseX0M\nWatch the full story 👉 https://youtu.be/BtnA4mseX0M",
+   "default_language": "hi",
+   "captions": [
+    {
+     "language": "hi",
+     "name": "हिन्दी",
+     "file": "transfer/transfer/hi.srt"
+    },
+    {
+     "language": "en",
+     "name": "English",
+     "file": "transfer/transfer/en.srt"
+    }
+   ]
+  },
+  "tags": [
+   "papa beti",
+   "father daughter story",
+   "emotional short film",
+   "hindi short film",
+   "heart touching story",
+   "animated short film",
+   "hindi animation",
+   "emotional animation",
+   "पापा बेटी",
+   "बाप बेटी",
+   "sad story hindi",
+   "2.5D animation",
+   "shorts"
+  ],
+  "category_id": "1",
+  "default_language": "hi",
+  "made_for_kids": false,
+  "privacy_status": "private"
+ }
+}
