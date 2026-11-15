@@ -1,0 +1,59 @@
+name: Upload queued videos from Google Drive
+
+on:
+  # Claude starts this right after queueing a video while the PC is off.
+  workflow_dispatch:
+    inputs:
+      job_file_id:
+        description: "Drive file id of one *.youtube.json job (leave empty to process the whole queue)"
+        required: false
+        default: ""
+      force:
+        description: "Ignore upload_after / failed status"
+        type: boolean
+        required: false
+        default: false
+  # Safety net: also checks the queue every 2 hours.
+  schedule:
+    - cron: "17 */2 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: youtube-uploader
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Upload from Drive to YouTube
+        env:
+          YT_CLOUD_KEY: ${{ secrets.YT_CLOUD_KEY }}
+          JOB_FILE_ID: ${{ inputs.job_file_id }}
+          FORCE: ${{ inputs.force }}
+        run: node cloud/run.mjs
+
+      # GitHub pauses scheduled workflows in repos with no activity for 60 days.
+      # Touch a heartbeat file about once a month so the safety net keeps running.
+      - name: Keep the schedule alive
+        if: github.event_name == 'schedule'
+        run: |
+          last=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          if [ $((now - last)) -gt $((40*24*3600)) ]; then
+            date -u +%FT%TZ > .heartbeat
+            git config user.name "claude-youtube-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .heartbeat
+            git commit -m "heartbeat: keep scheduled uploader active"
+            git push
+          fi

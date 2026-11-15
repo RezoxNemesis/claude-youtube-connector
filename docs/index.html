@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude YouTube Connector</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background: #0f0f0f; color: #f1f1f1; line-height: 1.6; }
+  main { max-width: 760px; margin: 0 auto; padding: 56px 24px; }
+  h1 { font-size: 34px; margin: 0 0 8px; }
+  h2 { font-size: 20px; margin-top: 36px; }
+  p, li { color: #cfcfcf; }
+  a { color: #3ea6ff; }
+  .tag { display: inline-block; background: #272727; border-radius: 999px; padding: 4px 12px; font-size: 13px; color: #aaa; }
+  footer { margin-top: 48px; font-size: 14px; color: #888; }
+</style>
+</head>
+<body>
+<main>
+  <span class="tag">Personal tool · single channel</span>
+  <h1>Claude YouTube Connector</h1>
+  <p>A private helper that lets the channel owner's Claude assistant manage the owner's own YouTube channel:
+     uploading the owner's videos with titles, descriptions, tags and thumbnails, scheduling them,
+     organising playlists, replying to comments and reading channel analytics.</p>
+
+  <h2>How it works</h2>
+  <ul>
+    <li><strong>On the owner's PC:</strong> a local connector inside the Claude desktop app talks to the YouTube Data API and YouTube Analytics API using the owner's own Google sign-in.</li>
+    <li><strong>When the PC is off:</strong> finished videos placed in the owner's Google Drive folder "Claude YouTube Queue" are uploaded by a GitHub Actions job in this repository, and the Drive copies are deleted afterwards to free space.</li>
+    <li>It is used only for the owner's own channel and is not offered to other users.</li>
+  </ul>
+
+  <h2>Google and YouTube services</h2>
+  <p>This tool uses YouTube API Services. By using it you agree to the
+     <a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a> and acknowledge the
+     <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.
+     Read how this tool handles data in its <a href="privacy.html">privacy policy</a>.</p>
+
+  <footer>
+    Source code: <a href="https://github.com/RezoxNemesis/claude-youtube-connector">github.com/RezoxNemesis/claude-youtube-connector</a> ·
+    <a href="privacy.html">Privacy policy</a> · <a href="terms.html">Terms</a>
+  </footer>
+</main>
+</body>
+</html>

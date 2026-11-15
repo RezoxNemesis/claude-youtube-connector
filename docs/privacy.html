@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy – Claude YouTube Connector</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background: #0f0f0f; color: #f1f1f1; line-height: 1.6; }
+  main { max-width: 760px; margin: 0 auto; padding: 56px 24px; }
+  h1 { font-size: 30px; margin: 0 0 4px; }
+  h2 { font-size: 19px; margin-top: 32px; }
+  p, li { color: #cfcfcf; }
+  a { color: #3ea6ff; }
+  .muted { color: #888; font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Privacy policy</h1>
+  <p class="muted">Claude YouTube Connector · last updated 15 November 2026</p>
+
+  <p>Claude YouTube Connector ("the tool") is a personal tool used only by the owner of one YouTube channel to manage
+     that channel with the help of the owner's Claude assistant. It is not offered to the public.</p>
+
+  <h2>YouTube API Services</h2>
+  <p>The tool uses YouTube API Services. Using it means you agree to the
+     <a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a>. Google's handling of your data is described in the
+     <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.</p>
+
+  <h2>What the tool accesses</h2>
+  <ul>
+    <li><strong>YouTube account data</strong> (through the YouTube Data API): channel details, the owner's videos, playlists and comments, so it can upload videos, edit their titles, descriptions, tags, thumbnails and schedules, manage playlists and reply to comments.</li>
+    <li><strong>YouTube Analytics</strong> (read-only): view, watch-time and audience reports for the owner's channel.</li>
+    <li><strong>Google Drive</strong>: only to read videos, thumbnails and upload instructions the owner places in the folder "Claude YouTube Queue", and to delete those files after they are uploaded.</li>
+  </ul>
+
+  <h2>How data is used, stored and shared</h2>
+  <ul>
+    <li>Data is used only to carry out the owner's own requests on the owner's own channel.</li>
+    <li>The Google sign-in token is stored on the owner's computer (in a file only the owner can read) and, for uploads while the computer is off, as an encrypted GitHub Actions secret in the owner's repository.</li>
+    <li>Video files pass straight from the owner's computer or Google Drive to YouTube; the tool keeps no copies. Drive copies are deleted after a successful upload.</li>
+    <li>The tool does not sell, rent or share any data with third parties and shows no ads. When the owner asks Claude to act on the channel, the request and results pass through the owner's own Claude account.</li>
+    <li>No cookies or tracking are used by this tool or these pages.</li>
+  </ul>
+
+  <h2>Deleting data and revoking access</h2>
+  <ul>
+    <li>Revoke the tool's access at any time from your Google Account:
+        <a href="https://security.google.com/settings/security/permissions">security.google.com/settings/security/permissions</a>.</li>
+    <li>Deleting the folder <code>~/.config/claude-youtube</code> on the computer and the <code>YT_CLOUD_KEY</code> secret in the GitHub repository removes every stored token.</li>
+    <li>Data obtained from YouTube is not stored by the tool beyond the current request, so there is nothing further to delete.</li>
+  </ul>
+
+  <h2>Contact</h2>
+  <p>Questions: open an issue at
+     <a href="https://github.com/RezoxNemesis/claude-youtube-connector/issues">github.com/RezoxNemesis/claude-youtube-connector/issues</a>.</p>
+
+  <p class="muted"><a href="index.html">← Home</a></p>
+</main>
+</body>
+</html>
