@@ -1,0 +1,55 @@
+{
+ "video_name": "Papa_Short2.mp4",
+ "sha256": "300157526737d4452bf10b8a1544d35c00be6d5b7d88c85eed508db81bc63c32",
+ "parts": [
+  "Papa_Short2.mp4"
+ ],
+ "job": {
+  "title": "पापा… आप रोना मत 🌹 #shorts",
+  "description": "हर शाम वो दरवाज़े पर उसका इंतज़ार करती थी। अब वो हर शाम प्लेटफ़ॉर्म 4 की उसी बेंच पर बैठता है।\n\n▶ पूरी फ़िल्म: https://youtu.be/BtnA4mseX0M\n\n#shorts #animation #emotional #papabeti #hindistory",
+  "publish_at": "2026-11-16T13:30:00Z",
+  "after_upload": {
+   "localizations": {
+    "en": {
+     "title": "Papa… don't cry 🌹 #shorts",
+     "description": "Every evening she waited for him at the door. Now he sits on the same bench at Platform 4 every evening.\n\n▶ Full film: https://youtu.be/BtnA4mseX0M\n\n#shorts #animation #emotional #fatherdaughter"
+    },
+    "hi": {
+     "title": "पापा… आप रोना मत 🌹 #shorts",
+     "description": "हर शाम वो दरवाज़े पर उसका इंतज़ार करती थी। अब वो हर शाम प्लेटफ़ॉर्म 4 की उसी बेंच पर बैठता है।\n\n▶ पूरी फ़िल्म: https://youtu.be/BtnA4mseX0M\n\n#shorts #animation #emotional #papabeti #hindistory"
+    }
+   },
+   "default_language": "hi",
+   "captions": [
+    {
+     "language": "hi",
+     "name": "हिन्दी",
+     "file": "transfer/transfer/hi.srt"
+    },
+    {
+     "language": "en",
+     "name": "English",
+     "file": "transfer/transfer/en.srt"
+    }
+   ]
+  },
+  "tags": [
+   "papa beti",
+   "father daughter story",
+   "emotional short film",
+   "hindi short film",
+   "heart touching story",
+   "animated short film",
+   "hindi animation",
+   "emotional animation",
+   "पापा बेटी",
+   "बाप बेटी",
+   "sad story hindi",
+   "2.5D animation",
+   "shorts"
+  ],
+  "category_id": "1",
+  "default_language": "hi",
+  "made_for_kids": false
+ }
+}

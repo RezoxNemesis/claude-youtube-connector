@@ -1,0 +1,7 @@
+1
+00:00:04,600 --> 00:00:06,700
+You're home! Here, this is for you!
+
+2
+00:00:18,100 --> 00:00:20,000
+Papa… don't cry.
