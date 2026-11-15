@@ -11,10 +11,20 @@ import { createGoogle, refreshTokenAuth } from "../src/core.mjs";
 const log = (...a) => console.log(...a);
 
 function credentials() {
-  const raw = process.env.YT_CLOUD_KEY;
+  const raw = (process.env.YT_CLOUD_KEY || "").replace(/\s+/g, "");
   if (!raw) throw new Error("Secret YT_CLOUD_KEY is not set (Settings → Secrets and variables → Actions).");
-  const j = JSON.parse(Buffer.from(raw.trim(), "base64").toString("utf8"));
-  if (!j.client_id || !j.client_secret || !j.refresh_token) throw new Error("YT_CLOUD_KEY is incomplete.");
+  let j = null;
+  for (const text of [raw, Buffer.from(raw, "base64").toString("utf8")]) {
+    try {
+      j = JSON.parse(text);
+      break;
+    } catch {}
+  }
+  if (!j || !j.client_id || !j.client_secret || !j.refresh_token) {
+    throw new Error(
+      `YT_CLOUD_KEY is not the cloud key (got ${raw.length} characters). Paste the single line from claude-youtube-cloud-key.txt (made by the connector tool youtube_cloud_key) into the secret again.`
+    );
+  }
   return j;
 }
 
