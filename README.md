@@ -45,9 +45,13 @@ The workflow runs when Claude starts it (`workflow_dispatch`, optionally with on
 
 Tokens live in `~/.config/claude-youtube` (mode 600) and in the encrypted GitHub secret — never in this repo.
 
-## Known YouTube limit
+## Cloud tasks (subtitles, translations, publishing)
 
-Videos uploaded through the API by a project that hasn't passed YouTube's **API compliance audit** are locked to **private**. Apply at <https://support.google.com/youtube/contact/yt_api_form>; until then, publish through YouTube Studio.
+`.github/workflows/youtube-task.yml` runs `cloud/task.mjs` on a task file in `tasks/…/task.json`: upload subtitle tracks (SRT), set translated titles/descriptions, change privacy, or go public a set time after processing. Example: `tasks/orez-ep1/`.
+
+## YouTube audit note
+
+YouTube's docs say uploads from projects that haven't passed the **API compliance audit** can be locked to private. On 15 Nov 2026 an upload from this project went public normally, but applying for the free audit (<https://support.google.com/youtube/contact/yt_api_form>, answers in `AUDIT.md`) is still the safe move. End screens and info cards have no API — they are set in YouTube Studio.
 
 ## Build
 
