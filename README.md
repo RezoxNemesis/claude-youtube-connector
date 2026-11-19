@@ -59,3 +59,14 @@ YouTube's docs say uploads from projects that haven't passed the **API complianc
 npm install
 npm run build   # → dist/claude-youtube.mcpb
 ```
+
+
+## Several channels (v1.2)
+
+One connector can work on several YouTube channels, for example brand channels that belong to the same Google login.
+
+- `youtube_auth_start` with `channel: "New Light"` signs in an extra channel. On Google's page, pick that channel (its brand account), then allow access. Extra channels get YouTube access only.
+- Every YouTube tool now takes an optional `channel` (name, @handle, channel id or key). Without it, the tool works on the main channel, exactly as before.
+- `youtube_channels` lists the signed-in channels; `youtube_auth_status` checks each of them.
+- The Google Drive queue (`youtube_queue_to_drive`, `youtube_upload_from_drive`, the cloud uploader) stays with the main channel.
+- Tokens: the main channel keeps `~/.config/claude-youtube/token.json`; extra channels are in `~/.config/claude-youtube/channels/<key>.json` (mode 600).

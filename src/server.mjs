@@ -13,6 +13,7 @@ import path from "node:path";
 import http from "node:http";
 import crypto from "node:crypto";
 import { spawn } from "node:child_process";
+import { AsyncLocalStorage } from "node:async_hooks";
 import {
   SCOPES,
   QUEUE_FOLDER_NAME,
@@ -24,12 +25,15 @@ import {
   mimeFor,
 } from "./core.mjs";
 
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const PORT = 8765;
 const REDIRECT_URI = `http://localhost:${PORT}/oauth2callback`;
 const CONFIG_DIR = path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"), "claude-youtube");
 const CLIENT_FILE = path.join(CONFIG_DIR, "client_secret.json");
-const TOKEN_FILE = path.join(CONFIG_DIR, "token.json");
+const TOKEN_FILE = path.join(CONFIG_DIR, "token.json"); // the main channel (unchanged location)
+const CHANNELS_DIR = path.join(CONFIG_DIR, "channels"); // one token file per extra channel
+const CHANNELS_INDEX = path.join(CONFIG_DIR, "channels.json"); // key -> { title, handle, id }
+const MAIN = "main";
 const CLOUD_REPO = "RezoxNemesis/claude-youtube-connector";
 
 const log = (...a) => console.error("[claude-youtube]", ...a);
@@ -92,22 +96,72 @@ async function loadClient() {
 
 // ---------------------------------------------------------------- tokens
 
-async function loadToken() {
+// ---------------------------------------------------------------- channels
+// Several YouTube channels (e.g. brand channels of one Google login) can be signed in.
+// "main" keeps the original token.json; every other channel has channels/<key>.json.
+// Each tool call runs inside ctx with the channel it asked for (default: main).
+
+const ctx = new AsyncLocalStorage();
+const currentKey = () => (ctx.getStore() && ctx.getStore().key) || MAIN;
+const slug = (s) => String(s).toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "channel";
+const tokenFile = (key) => (key === MAIN ? TOKEN_FILE : path.join(CHANNELS_DIR, `${slug(key)}.json`));
+
+async function loadIndex() {
   try {
-    return JSON.parse(await fsp.readFile(TOKEN_FILE, "utf8"));
+    return JSON.parse(await fsp.readFile(CHANNELS_INDEX, "utf8"));
+  } catch {
+    return {};
+  }
+}
+async function saveIndexEntry(key, ch) {
+  const idx = await loadIndex();
+  idx[key] = { title: ch.snippet.title, handle: ch.snippet.customUrl || null, id: ch.id };
+  await writePrivate(CHANNELS_INDEX, JSON.stringify(idx, null, 2));
+  return idx[key];
+}
+async function knownKeys() {
+  const keys = new Set([MAIN, ...Object.keys(await loadIndex())]);
+  try {
+    for (const n of await fsp.readdir(CHANNELS_DIR)) if (n.endsWith(".json")) keys.add(n.slice(0, -5));
+  } catch {}
+  return [...keys];
+}
+// Accepts a key ("main", "new-light"), a channel title ("New Light"), a handle ("@NewLightScience") or a channel id.
+async function resolveChannel(input) {
+  if (!input) return MAIN;
+  const raw = String(input).trim();
+  const low = raw.toLowerCase().replace(/^@/, "");
+  const idx = await loadIndex();
+  for (const key of await knownKeys()) {
+    const e = idx[key] || {};
+    const cands = [key, slug(key), e.title, e.handle, e.id].filter(Boolean).map((x) => String(x).toLowerCase().replace(/^@/, ""));
+    if (cands.includes(low) || cands.includes(slug(raw))) return key;
+  }
+  const list = (await knownKeys()).map((k) => (idx[k] ? `${k} (${idx[k].title}${idx[k].handle ? ", " + idx[k].handle : ""})` : k)).join("; ");
+  throw new Error(`Unknown channel "${raw}". Signed-in channels: ${list}. To add one, call youtube_auth_start with channel set to its name.`);
+}
+
+async function loadToken(key = currentKey()) {
+  try {
+    return JSON.parse(await fsp.readFile(tokenFile(key), "utf8"));
   } catch {
     return null;
   }
 }
-const saveToken = (t) => writePrivate(TOKEN_FILE, JSON.stringify(t, null, 2));
+const saveToken = (t, key = currentKey()) => writePrivate(tokenFile(key), JSON.stringify(t, null, 2));
 
-let refreshing = null;
-async function getAccessToken() {
-  const tok = await loadToken();
+const refreshingByKey = new Map();
+async function getAccessTokenFor(key) {
+  const tok = await loadToken(key);
   if (!tok || !tok.refresh_token) {
-    throw new Error("Not connected to YouTube yet. Call youtube_auth_start and sign in with the channel's Google account.");
+    throw new Error(
+      key === MAIN
+        ? "Not connected to YouTube yet. Call youtube_auth_start and sign in with the channel's Google account."
+        : `Channel "${key}" is not signed in. Call youtube_auth_start with channel "${key}".`
+    );
   }
   if (tok.access_token && tok.expiry && tok.expiry - Date.now() > 60_000) return tok.access_token;
+  let refreshing = refreshingByKey.get(key);
   if (!refreshing) {
     refreshing = (async () => {
       const client = await loadClient();
@@ -119,24 +173,33 @@ async function getAccessToken() {
           grant_type: "refresh_token",
         });
         const next = { ...tok, access_token: j.access_token, expiry: Date.now() + (j.expires_in || 3600) * 1000, scope: j.scope || tok.scope };
-        await saveToken(next);
+        await saveToken(next, key);
         return next.access_token;
       } catch (e) {
-        if (e.code === "invalid_grant") throw new Error("YouTube sign-in expired or was revoked. Call youtube_auth_start to sign in again.");
+        if (e.code === "invalid_grant") throw new Error(`YouTube sign-in for "${key}" expired or was revoked. Call youtube_auth_start${key === MAIN ? "" : ` with channel "${key}"`} to sign in again.`);
         throw e;
       } finally {
-        setTimeout(() => (refreshing = null), 0);
+        setTimeout(() => refreshingByKey.delete(key), 0);
       }
     })();
+    refreshingByKey.set(key, refreshing);
   }
   return refreshing;
 }
+const getAccessToken = () => getAccessTokenFor(currentKey());
 
-const g = createGoogle(getAccessToken, log);
+// One Google client per channel. The Google Drive queue always belongs to the main sign-in.
+const clients = new Map();
+const gFor = (key) => {
+  if (!clients.has(key)) clients.set(key, createGoogle(() => getAccessTokenFor(key), log));
+  return clients.get(key);
+};
+const DRIVE_PARTS = /^(drive|queueFolder|findInFolder|readJob|writeJob|listQueue|appendLog|resolveDriveFile|processJob)/;
+const g = new Proxy({}, { get: (_, prop) => gFor(typeof prop === "string" && DRIVE_PARTS.test(prop) ? MAIN : currentKey())[prop] });
 
 // ---------------------------------------------------------------- sign-in flow (loopback)
 
-const auth = { servers: [], state: null, verifier: null, status: "idle", error: null, timer: null };
+const auth = { servers: [], state: null, verifier: null, status: "idle", error: null, timer: null, key: MAIN, channel: null };
 const b64url = (buf) => buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
 function stopAuthServers() {
@@ -180,7 +243,8 @@ async function handleCallback(req, res) {
       grant_type: "authorization_code",
       redirect_uri: REDIRECT_URI,
     });
-    const prev = (await loadToken()) || {};
+    const key = auth.key || MAIN;
+    const prev = (await loadToken(key)) || {};
     const tok = {
       access_token: j.access_token,
       refresh_token: j.refresh_token || prev.refresh_token,
@@ -189,10 +253,20 @@ async function handleCallback(req, res) {
       created: new Date().toISOString(),
     };
     if (!tok.refresh_token) throw new Error("Google did not return a refresh token");
-    await saveToken(tok);
+    await saveToken(tok, key);
+    clients.delete(key);
+    let chTitle = "your channel";
+    try {
+      const ch = await gFor(key).myChannel(true);
+      auth.channel = await saveIndexEntry(key, ch);
+      chTitle = ch.snippet.title;
+    } catch (e) {
+      auth.channel = null;
+      log("channel lookup after sign-in", e);
+    }
     auth.status = "connected";
     auth.error = null;
-    send(200, "YouTube connected ✓", "Claude can now work on your channel. You can close this tab.");
+    send(200, "YouTube connected ✓", `Claude can now work on ${chTitle}. You can close this tab.`);
   } catch (e) {
     auth.status = "error";
     auth.error = String(e.message || e);
@@ -227,8 +301,10 @@ function openInBrowser(url) {
   return runDetached("xdg-open", [url]);
 }
 
-async function startAuth(openBrowser) {
+async function startAuth(openBrowser, key = MAIN) {
   const client = await loadClient();
+  auth.key = key;
+  auth.channel = null;
   stopAuthServers();
   const servers = (await Promise.all([listen("127.0.0.1"), listen("::1")])).filter(Boolean);
   if (!servers.length) throw new Error(`Port ${PORT} is busy on this PC; close whatever uses it and try again.`);
@@ -242,9 +318,10 @@ async function startAuth(openBrowser) {
       client_id: client.client_id,
       redirect_uri: REDIRECT_URI,
       response_type: "code",
-      scope: SCOPES.join(" "),
+      // Extra channels only need YouTube; the Drive queue stays with the main sign-in.
+      scope: (key === MAIN ? SCOPES : SCOPES.filter((sc) => !sc.includes("/drive"))).join(" "),
       access_type: "offline",
-      prompt: "consent",
+      prompt: key === MAIN ? "consent" : "select_account consent",
       include_granted_scopes: "true",
       state: auth.state,
       code_challenge: challenge,
@@ -331,44 +408,92 @@ const wantsPublic = (a) => !!a.publish_at || (a.privacy_status && a.privacy_stat
 // ---------------------------------------------------------------- MCP server
 
 const server = new McpServer({ name: "claude-youtube", version: VERSION });
-const tool = (name, description, shape, handler, annotations = {}) =>
-  server.registerTool(name, { description, inputSchema: shape, annotations }, async (args) => {
+const channelArg = z
+  .string()
+  .optional()
+  .describe("Which YouTube channel to act on: its name, @handle, id or key from youtube_channels. Default: the main channel.");
+const NO_CHANNEL = new Set(["youtube_auth_start", "youtube_auth_status", "youtube_channels", "youtube_cloud_key", "youtube_job_status", "youtube_drive_queue", "youtube_queue_to_drive", "youtube_upload_from_drive"]); // the Drive queue belongs to the main channel
+const tool = (name, description, shape, handler, annotations = {}) => {
+  const withChannel = NO_CHANNEL.has(name) ? shape : { ...shape, channel: channelArg };
+  return server.registerTool(name, { description, inputSchema: withChannel, annotations }, async (args) => {
     try {
-      return await handler(args || {});
+      const a = args || {};
+      const key = NO_CHANNEL.has(name) ? MAIN : await resolveChannel(a.channel);
+      return await ctx.run({ key }, () => handler(a));
     } catch (e) {
       log(name, e);
       return fail(e.message || String(e));
     }
   });
+};
 
 // --- connection
 
 tool(
   "youtube_auth_start",
-  "Start (or redo) the one-time Google sign-in that links this connector to the YouTube channel and Google Drive. Returns a sign-in URL: open it in a browser on this PC, pick the channel's Google account and allow access; the page then says 'YouTube connected'. Then call youtube_auth_status.",
-  { open_in_default_browser: z.boolean().optional().describe("Also open the URL in the PC's default browser. Default false.") },
-  async ({ open_in_default_browser }) => {
-    const r = await startAuth(!!open_in_default_browser);
-    return ok({ sign_in_url: r.url, opened_in_default_browser: r.opened, note: "Open on this PC (it returns to localhost:8765). Valid 15 minutes." });
+  "Start (or redo) the one-time Google sign-in for a YouTube channel. Without channel it signs in the main channel (YouTube + Google Drive). With channel set to a name (e.g. 'New Light') it adds or re-signs that extra channel, e.g. a brand channel of the same Google login: on Google's page pick that channel, then allow access. Returns a sign-in URL to open in a browser on this PC; the page then says 'YouTube connected'. Then call youtube_auth_status.",
+  {
+    channel: z.string().optional().describe("Name or key of the channel to sign in. Omit for the main channel."),
+    open_in_default_browser: z.boolean().optional().describe("Also open the URL in the PC's default browser. Default false."),
+  },
+  async ({ channel, open_in_default_browser }) => {
+    let key = MAIN;
+    if (channel) key = await resolveChannel(channel).catch(() => slug(channel));
+    const r = await startAuth(!!open_in_default_browser, key);
+    return ok({
+      channel_key: key,
+      sign_in_url: r.url,
+      opened_in_default_browser: r.opened,
+      note: `Open on this PC (it returns to localhost:8765). Valid 15 minutes.${key === MAIN ? "" : " On Google's account page choose the channel itself (e.g. its brand account), not the personal account."}`,
+    });
   },
   { openWorldHint: true }
 );
 
 tool(
   "youtube_auth_status",
-  "Check whether the connector is signed in, and to which YouTube channel.",
+  "Check which YouTube channels the connector is signed in to, and the state of the last sign-in.",
   {},
   async () => {
-    const tok = await loadToken();
-    const base = { client_file_found: !!(await findClientFile().catch(() => null)), sign_in_flow: auth.status, ...(auth.error ? { sign_in_error: auth.error } : {}) };
-    if (!tok || !tok.refresh_token) return ok({ connected: false, ...base });
-    const ch = await g.myChannel(true);
-    return ok({
-      connected: true,
-      ...base,
-      channel: { id: ch.id, title: ch.snippet.title, handle: ch.snippet.customUrl, url: `https://www.youtube.com/channel/${ch.id}` },
-      scopes: tok.scope,
-    });
+    const base = {
+      client_file_found: !!(await findClientFile().catch(() => null)),
+      sign_in_flow: auth.status,
+      sign_in_channel_key: auth.key,
+      ...(auth.channel ? { signed_in_channel: auth.channel } : {}),
+      ...(auth.error ? { sign_in_error: auth.error } : {}),
+    };
+    const channels = [];
+    for (const key of await knownKeys()) {
+      const tok = await loadToken(key);
+      if (!tok || !tok.refresh_token) {
+        channels.push({ key, connected: false });
+        continue;
+      }
+      try {
+        const ch = await gFor(key).myChannel(true);
+        await saveIndexEntry(key, ch);
+        channels.push({ key, connected: true, id: ch.id, title: ch.snippet.title, handle: ch.snippet.customUrl, url: `https://www.youtube.com/channel/${ch.id}`, drive_queue: key === MAIN });
+      } catch (e) {
+        channels.push({ key, connected: false, error: e.message || String(e) });
+      }
+    }
+    return ok({ connected: channels.some((c) => c.key === MAIN && c.connected), ...base, channels });
+  },
+  { readOnlyHint: true }
+);
+
+tool(
+  "youtube_channels",
+  "List the YouTube channels this connector can act on (key, title, handle, id). Pass any of these as the channel argument of other tools; without it they act on the main channel.",
+  {},
+  async () => {
+    const idx = await loadIndex();
+    const out = [];
+    for (const key of await knownKeys()) {
+      const tok = await loadToken(key);
+      out.push({ key, signed_in: !!(tok && tok.refresh_token), default: key === MAIN, ...(idx[key] || {}) });
+    }
+    return ok(out);
   },
   { readOnlyHint: true }
 );

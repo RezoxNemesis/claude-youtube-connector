@@ -2,7 +2,7 @@
   "manifest_version": "0.2",
   "name": "claude-youtube",
   "display_name": "Claude YouTube Connector",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Lets Claude upload, schedule and manage videos on your YouTube channel, and queue uploads through Google Drive for when your PC is off.",
   "long_description": "Your own YouTube connector. Claude can upload videos from this PC with titles, descriptions, tags, thumbnails and schedules; edit videos; manage playlists; read and reply to comments; search YouTube; and read channel analytics. It can also copy finished videos into the Google Drive folder 'Claude YouTube Queue' so the cloud uploader (GitHub Actions) publishes them while the PC is off and then deletes the Drive copies. Sign-in tokens stay in ~/.config/claude-youtube on this PC.",
   "author": { "name": "RezoxNemesis", "url": "https://github.com/RezoxNemesis" },
